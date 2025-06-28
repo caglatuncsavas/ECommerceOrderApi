@@ -12,7 +12,7 @@ public class ECommerceDbContext : IdentityDbContext<ApplicationUser, IdentityRol
     {
     }
 
-    public DbSet<Order> Orders { get; set; }
+    public DbSet<Order?> Orders { get; set; }
     public DbSet<Product> Products { get; set; }
 }
 

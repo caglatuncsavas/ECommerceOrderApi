@@ -32,6 +32,12 @@ public class OrderMap : IEntityTypeConfiguration<Order>
         builder.Property(x => x.CreatedAt)
             .HasColumnType("datetime2(7)");
 
+        builder.Property(x => x.UpdatedAt)
+            .HasColumnType("datetime2(7)")
+            .IsRequired();
+
+        builder.HasQueryFilter(x => !x.IsDeleted);
+
     }
 }
 

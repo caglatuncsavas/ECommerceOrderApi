@@ -16,6 +16,10 @@ public class Order
 
     public OrderStatus Status { get; set; }
 
+    public bool IsDeleted { get; set; }
+
+    public DateTime UpdatedAt { get; set; } 
+
     public DateTime CreatedAt { get; set; }
 }
 
