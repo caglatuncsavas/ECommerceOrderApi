@@ -6,7 +6,7 @@ Bu proje, **saatlik 5 token limit** olan external API'ler için **akıllı token
 
 - **İhtiyaç**: Her 5 dakikada sipariş listesi sorgusu (12 kez/saat)
 - **Limit**: Token alımı için 5 istek/saat
-- **Çelişki**: 12 > 5 😅
+- **Çelişki**: 12 > 5 
 
 ## ✅ Çözüm
 
