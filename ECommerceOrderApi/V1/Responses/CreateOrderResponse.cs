@@ -1,4 +1,3 @@
-using ECommerceOrderApi.Data.Entities;
 using ECommerceOrderApi.Data.Enums;
 
 namespace ECommerceOrderApi.V1.Responses;

@@ -1,5 +1,7 @@
 using ECommerceOrderApi.Data;
 using ECommerceOrderApi.Data.Entities;
+using ECommerceOrderApi.Services.Interfaces;
+using ECommerceOrderApi.Services;
 using ECommerceOrderApi.V1.Requests;
 using ECommerceOrderApi.V1.Requests.Validators;
 using FluentValidation;
@@ -32,6 +34,13 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 builder.Services.AddValidatorsFromAssemblyContaining<CreateOrderRequestValidator>();
 builder.Services.AddScoped<IValidator<CreateOrderRequest>, CreateOrderRequestValidator>();
 
+// Token Management Servisleri
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+// Background Services
+builder.Services.AddHostedService<TokenRenewalBackgroundService>();
+builder.Services.AddHostedService<OrderSyncBackgroundService>();
+
 builder.Services.AddHttpClient();
 
 // TokenService için özel HttpClient (named client)
@@ -41,6 +50,9 @@ builder.Services.AddHttpClient("TokenService", client =>
 });
 
 var app = builder.Build();
+
+// Test kullanıcısı otomatik oluştur
+await CreateTestUser(app);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -57,3 +69,49 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Test kullanıcısı oluşturma metodu
+static async Task CreateTestUser(WebApplication app)
+{
+    using IServiceScope scope = app.Services.CreateScope();
+    UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        string testEmail = "testuser@test.com";
+        ApplicationUser? existingUser = await userManager.FindByEmailAsync(testEmail);
+
+        if (existingUser == null)
+        {
+            ApplicationUser testUser = new ApplicationUser
+            {
+                UserName = testEmail,
+                Email = testEmail,
+                EmailConfirmed = true
+            };
+
+            IdentityResult result = await userManager.CreateAsync(testUser, "Test123!");
+
+            if (result.Succeeded)
+            {
+                logger.LogInformation("🎯 Test kullanıcısı oluşturuldu: {Email} - ID: {UserId}", testEmail, testUser.Id);
+                logger.LogInformation("📝 Test için kullanın: GET /api/v1/orders?userId={UserId}", testUser.Id);
+            }
+            else
+            {
+                logger.LogError("❌ Test kullanıcısı oluşturulamadı: {Errors}", 
+                    string.Join(", ", result.Errors.Select(e => e.Description)));
+            }
+        }
+        else
+        {
+            logger.LogInformation("ℹ️ Test kullanıcısı zaten mevcut: {Email} - ID: {UserId}", testEmail, existingUser.Id);
+            logger.LogInformation("📝 Test için kullanın: GET /api/v1/orders?userId={UserId}", existingUser.Id);
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "❌ Test kullanıcısı oluşturulurken hata");
+    }
+}

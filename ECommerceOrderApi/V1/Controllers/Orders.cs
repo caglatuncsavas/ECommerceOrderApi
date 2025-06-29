@@ -1,17 +1,18 @@
 ﻿using ECommerceOrderApi.Data;
 using ECommerceOrderApi.Data.Entities;
 using ECommerceOrderApi.Data.Enums;
+using ECommerceOrderApi.Services.Interfaces;
 using ECommerceOrderApi.V1.Requests;
 using ECommerceOrderApi.V1.Responses;
-using ECommerceOrderApi.Services.Interfaces;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+// using Microsoft.AspNetCore.Authorization; // Test için geçici olarak kapatıldı
 
 
 namespace ECommerceOrderApi.V1.Controllers;
-
+// [Authorize] // Test için geçici olarak kapatıldı
 [Route("api/v1/[controller]")]
 [ApiController]
 public class Orders(
@@ -39,48 +40,28 @@ public class Orders(
             });
         }
 
-        try
-        {
-            //  External API'den sipariş listesi çek (Token Management ile)
-            logger.LogInformation(" External API'den sipariş listesi alınıyor - UserId: {UserId}", request.UserId);
+        List<Order?> orders = await context.Orders
+            .Include(o => o.Items)
+            .Where(o => o.UserId == request.UserId && !o.IsDeleted)
+            .ToListAsync(cancellationToken);
 
-            // Token al (Rate limit korumalı)
-            string? token = await tokenService.GetValidToken();
-            
-            if (string.IsNullOrEmpty(token))
+        List<QueryOrderResponse> response = orders.Select(o => new QueryOrderResponse
+        {
+            OrderId = o.Id,
+            UserId = o.UserId,
+            CreatedAt = o.CreatedAt,
+            TotalAmount = o.TotalAmount,
+            Status = o.Status,
+            Items = o.Items.Select(oi => new OrderItemResponse
             {
-                logger.LogError(" Token alınamadı");
+                ProductId = oi.ProductId,
+                Quantity = oi.Quantity,
+                UnitPrice = oi.UnitPrice,
+                TotalPrice = oi.TotalPrice
+            }).ToList()
+        }).ToList();
 
-               ProblemDetails problemDetails = new ProblemDetails
-                {
-                    Status = StatusCodes.Status500InternalServerError,
-                    Title = "Token Error",
-                    Detail = "Unable to retrieve a valid token for external API."
-                };
-                return StatusCode(StatusCodes.Status500InternalServerError, problemDetails);
-            }
-
-            // External API'yi çağır
-            List<QueryOrderResponse> externalOrders = await GetOrdersFromExternalApiAsync(token, request.UserId, cancellationToken);
-
-            logger.LogInformation(" External API'den {Count} sipariş alındı", externalOrders.Count);
-
-            return Ok(externalOrders);
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("Rate limit"))
-        {
-            logger.LogWarning(" Rate limit aşıldı, local DB'den sipariş listesi dönülüyor");
-            
-            // Rate limit aşıldıysa fallback olarak local DB'den çek
-            return await GetOrdersFromLocalDatabase(request.UserId, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, " External API'den sipariş alınırken hata oluştu");
-            
-            // Hata durumunda fallback olarak local DB'den çek
-            return await GetOrdersFromLocalDatabase(request.UserId, cancellationToken);
-        }
+        return Ok(response);
     }
 
     [HttpGet("{id}")]
@@ -241,109 +222,5 @@ public class Orders(
         {
             throw new ArgumentException("Order ID must be greater than zero.", nameof(id));
         }
-    }
-
-    /// <summary>
-    /// External API'den sipariş listesi çeker (Token ile)
-    /// </summary>
-    private async Task<List<QueryOrderResponse>> GetOrdersFromExternalApiAsync(string token, Guid userId, CancellationToken cancellationToken)
-    {
-        var ordersEndpoint = configuration["ExternalApi:OrdersEndpoint"] ?? "https://api.example.com/api/orders";
-        var useMockResponse = configuration.GetValue<bool>("ExternalApi:UseMockResponse", true);
-
-        if (useMockResponse)
-        {
-            // DEMO AMAÇLI MOCK RESPONSE
-            logger.LogInformation("📋 Mock external API response dönülüyor...");
-            
-            await Task.Delay(300, cancellationToken); // API gecikmesini simüle et
-            
-            var mockOrders = new List<QueryOrderResponse>
-            {
-                new() 
-                {
-                    OrderId = 1001,
-                    UserId = userId,
-                    CreatedAt = DateTime.Now.AddDays(-2),
-                    TotalAmount = 150.50m,
-                    Status = OrderStatus.Pending,
-                    Items = new List<OrderItemResponse>
-                    {
-                        new() { ProductId = 1, Quantity = 2, UnitPrice = 75.25m, TotalPrice = 150.50m }
-                    }
-                },
-                new() 
-                {
-                    OrderId = 1002,
-                    UserId = userId,
-                    CreatedAt = DateTime.Now.AddDays(-1),
-                    TotalAmount = 275.25m,
-                    Status = OrderStatus.Pending,
-                    Items = new List<OrderItemResponse>
-                    {
-                        new() { ProductId = 2, Quantity = 1, UnitPrice = 275.25m, TotalPrice = 275.25m }
-                    }
-                }
-            };
-            
-            return mockOrders;
-        }
-        else
-        {
-            // GERÇEK API ÇAĞRISI
-            using var httpClient = httpClientFactory.CreateClient();
-            var request = new HttpRequestMessage(HttpMethod.Get, $"{ordersEndpoint}?userId={userId}");
-            request.Headers.Add("Authorization", token);
-
-            using var response = await httpClient.SendAsync(request, cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogError("❌ External API'den sipariş alımında hata: {StatusCode} - {Content}", 
-                    response.StatusCode, errorContent);
-                
-                throw new HttpRequestException($"External API'den sipariş alımında hata: {response.StatusCode}");
-            }
-
-            var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            var externalOrders = JsonSerializer.Deserialize<List<QueryOrderResponse>>(jsonContent, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            }) ?? new List<QueryOrderResponse>();
-
-            return externalOrders;
-        }
-    }
-
-    /// <summary>
-    /// Fallback: Local DB'den sipariş listesi çeker
-    /// </summary>
-    private async Task<IActionResult> GetOrdersFromLocalDatabase(Guid userId, CancellationToken cancellationToken)
-    {
-        logger.LogInformation("💾 Fallback: Local DB'den sipariş listesi alınıyor - UserId: {UserId}", userId);
-
-        List<Order> orders = await context.Orders
-            .Include(o => o.Items)
-            .Where(o => o.UserId == userId)
-            .ToListAsync(cancellationToken);
-
-        List<QueryOrderResponse> response = orders.Select(o => new QueryOrderResponse
-        {
-            OrderId = o.Id,
-            UserId = o.UserId,
-            CreatedAt = o.CreatedAt,
-            TotalAmount = o.TotalAmount,
-            Status = o.Status,
-            Items = o.Items.Select(oi => new OrderItemResponse
-            {
-                ProductId = oi.ProductId,
-                Quantity = oi.Quantity,
-                UnitPrice = oi.UnitPrice,
-                TotalPrice = oi.TotalPrice
-            }).ToList()
-        }).ToList();
-
-        return Ok(response);
     }
 }
