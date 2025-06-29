@@ -1,11 +1,10 @@
 using ECommerceOrderApi.Data;
 using ECommerceOrderApi.Data.Entities;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using System;
+using ECommerceOrderApi.V1.Requests;
 using ECommerceOrderApi.V1.Requests.Validators;
 using FluentValidation;
-using ECommerceOrderApi.V1.Requests;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,8 +30,15 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 .AddDefaultTokenProviders();
 
 builder.Services.AddValidatorsFromAssemblyContaining<CreateOrderRequestValidator>();
-
 builder.Services.AddScoped<IValidator<CreateOrderRequest>, CreateOrderRequestValidator>();
+
+builder.Services.AddHttpClient();
+
+// TokenService için özel HttpClient (named client)
+builder.Services.AddHttpClient("TokenService", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 var app = builder.Build();
 
