@@ -1,12 +1,12 @@
-# 🎯 Token Yönetimi Çözümü
+#  Token Yönetimi Çözümü
 
 Bu proje, **saatlik 5 token limit** olan external API'ler için **akıllı token yönetimi** sağlar. Her 5 dakikada sipariş listesi senkronizasyonu yaparken token limitine takılmayı önler.
 
-## 🔥 Problem
+##  Problem
 
 - **İhtiyaç**: Her 5 dakikada sipariş listesi sorgusu (12 kez/saat)
 - **Limit**: Token alımı için 5 istek/saat sınırı
-- **Çelişki**: 12 > 5 😱 **Rate Limit Aşımı!**
+- **Çelişki**: 12 > 5  **Rate Limit Aşımı!**
 
 ## ✅ Çözüm Mimarisi
 
@@ -31,7 +31,7 @@ public bool ShouldRenew => DateTime.UtcNow >= CreatedAt.AddSeconds(ExpiresIn - 6
 - **TokenRenewalBackgroundService**: Her 5 dakikada token durumu kontrolü
 - **OrderSyncBackgroundService**: Her 5 dakikada sipariş senkronizasyonu
 
-## 📁 Implementasyon Dosyaları
+##  Implementasyon Dosyaları
 
 ```
 Services/
@@ -84,16 +84,16 @@ builder.Services.AddHttpClient("TokenService", client =>
 });
 ```
 
-## 🚀 Otomatik Başlatma
+##  Otomatik Başlatma
 
 Uygulama başladığında:
 
-1. **✅ Test kullanıcısı otomatik oluşturulur**
-2. **⏰ 10 saniye sonra** - Token renewal service başlar
-3. **⏰ 30 saniye sonra** - Order sync service başlar
-4. **🔄 Her 5 dakikada** - Token kontrolü ve sipariş senkronizasyonu
+1. ** Test kullanıcısı otomatik oluşturulur**
+2. ** 10 saniye sonra** - Token renewal service başlar
+3. ** 30 saniye sonra** - Order sync service başlar
+4. ** Her 5 dakikada** - Token kontrolü ve sipariş senkronizasyonu
 
-## 🎯 Token Lifecycle
+##  Token Lifecycle
 
 ```mermaid
 graph TD
@@ -115,21 +115,12 @@ graph TD
 ```
 
 ## 📊 Performance Optimizasyonu
-
-### ❌ Önceki Durum (Hatalı)
-```
-Her API çağrısı → Yeni token = 12 token/saat
-└── Rate limit aşımı ❌
-└── API çağrıları başarısız ❌
-```
-
-### ✅ Şimdiki Durum (Optimized)
 ```
 1 token → 60 dakika kullanım = 1 token/saat
-├── 10 dakika buffer ile proactive renewal ✅
-├── Thread-safe concurrent access ✅
-├── Background service ile async management ✅
-└── Fallback mechanism ✅
+├── 10 dakika buffer ile proactive renewal 
+├── Thread-safe concurrent access 
+├── Background service ile async management 
+└── Fallback mechanism 
 ```
 
 ## 🧪 Test Endpoints
@@ -137,8 +128,8 @@ Her API çağrısı → Yeni token = 12 token/saat
 ### Otomatik Test User
 Uygulama başlatıldığında console'da göreceksiniz:
 ```
-🎯 Test kullanıcısı oluşturuldu: testuser@test.com - ID: 12345678-1234-1234-1234-123456789abc
-📝 Test için kullanın: GET /api/v1/orders?userId=12345678-1234-1234-1234-123456789abc
+ Test kullanıcısı oluşturuldu: testuser@test.com - ID: 12345678-1234-1234-1234-123456789abc
+ Test için kullanın: GET /api/v1/orders?userId=12345678-1234-1234-1234-123456789abc
 ```
 
 ### API Endpoints
@@ -256,9 +247,7 @@ info: ECommerceOrderApi.Services.OrderSyncBackgroundService[0]
       Sipariş senkronizasyonu tamamlandı. 2 sipariş alındı, süre: 5.1626ms
 ```
 
-> **🔍 Log Levels**: Production'da `Information` level kullanın. Debug detayları için `Debug` level'ı aktif edin.
-
-## 🛡️ Güvenlik & Best Practices
+## 🛡 Güvenlik & Best Practices
 
 ### Thread Safety
 ```csharp
@@ -291,7 +280,7 @@ finally
 - **Fallback mechanisms** ile service degradation
 - **Structured logging** ile monitoring support
 
-## 🎉 Sonuç
+##  Sonuç
 
 Bu token yönetimi çözümü ile:
 
@@ -303,7 +292,7 @@ Bu token yönetimi çözümü ile:
 - ✅ **Test-friendly** (otomatik test user + mock responses)
 - ✅ **Transparent operation** (geliştiriciler sadece Orders API'sini kullanır)
 
-**🎯 Artık her 5 dakikada güvenle API çağrısı yapabilirsiniz!**
+** Artık her 5 dakikada güvenle API çağrısı yapabilirsiniz!**
 
 ---
 
@@ -323,7 +312,7 @@ curl "http://localhost:5268/api/v1/orders?userId=USER_ID"
 # http://localhost:5268/swagger
 ```
 
-**🎯 Token yönetimi tamamen arka planda otomatik çalışır!**
+** Token yönetimi tamamen arka planda otomatik çalışır!**
 
 ### Background Service Logları
 Console'da şu logları göreceksiniz:
@@ -341,4 +330,4 @@ info: ECommerceOrderApi.Services.TokenService[0]
       İlk token alımı yapılıyor...
 ```
 
-**Token yönetimi artık tamamen hands-off! Siz sadece API'yi kullanın!** ⚡ 
+**Token yönetimi artık tamamen hands-off! Siz sadece API'yi kullanın!**  
