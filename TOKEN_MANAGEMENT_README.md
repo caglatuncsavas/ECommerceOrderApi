@@ -1,3 +1,5 @@
+# 🎯 Token Yönetimi Çözümü
+
 Bu proje, **saatlik 5 token limit** olan external API'ler için **akıllı token yönetimi** sağlar. Her 5 dakikada sipariş listesi senkronizasyonu yaparken token limitine takılmayı önler.
 
 ## 🔥 Problem
@@ -33,6 +35,8 @@ public bool ShouldRenew => DateTime.UtcNow >= CreatedAt.AddSeconds(ExpiresIn - 6
 
 ```
 Services/
+├── Interfaces/
+│   └── ITokenService.cs               # Token service interface
 ├── TokenService.cs                    # Ana token yönetimi (cache + rate limit)
 ├── TokenRenewalBackgroundService.cs   # Otomatik token yenileme
 ├── OrderSyncBackgroundService.cs      # Otomatik sipariş sync
@@ -40,9 +44,9 @@ Services/
     └── TokenResponse.cs               # Token modeli
 
 V1/Controllers/
-└── TokenManagement.cs                 # Test & monitoring endpoints
+└── Orders.cs                          # Token entegreli sipariş API
 
-Program.cs                             # Service registration + test user
+Program.cs                             # Service registration + otomatik test user
 ```
 
 ## ⚙️ Konfigürasyon
@@ -139,22 +143,13 @@ Uygulama başlatıldığında console'da göreceksiniz:
 
 ### API Endpoints
 
-#### **Token Management**
+#### **Orders (Token Otomatik Yönetimi)**
 ```bash
-# Token durumunu kontrol et
-GET /api/v1/tokenmanagement/status
-
-# Rate limit durumunu kontrol et
-GET /api/v1/tokenmanagement/rate-limit
-
-# Manuel token yenileme (test için)
-POST /api/v1/tokenmanagement/force-renew
-```
-
-#### **Orders (Token Entegreli)**
-```bash
-# Sipariş listesi (Token otomatik yönetimi ile)
+# Sipariş listesi (Token otomatik cache ve yönetimi ile)
 GET /api/v1/orders?userId={USER_ID}
+
+# Tekil sipariş getir
+GET /api/v1/orders/{orderId}
 
 # Yeni sipariş oluştur  
 POST /api/v1/orders
@@ -168,7 +163,16 @@ Content-Type: application/json
         }
     ]
 }
+
+# Sipariş sil (soft delete)
+DELETE /api/v1/orders/{orderId}
 ```
+
+> **💡 Not**: Token yönetimi tamamen otomatik! Her API çağrısında TokenService otomatik olarak:
+> - ✅ Cache'den geçerli token'ı kullanır
+> - ✅ Süresi dolacaksa proaktif yeniler  
+> - ✅ Rate limit'i takip eder
+> - ✅ Background service ile sürekli güncel tutar
 
 ## 🔄 Rate Limit Management
 
@@ -210,24 +214,49 @@ catch (InvalidOperationException ex) when (ex.Message.Contains("Rate limit"))
 
 ## 📈 Monitoring & Logs
 
-### Önemli Log Mesajları
-```
-✅ Cached token kullanılıyor. Expires: 2025-06-29 23:37:30
-🔄 Token yenileniyor (10 dakika buffer)...
-⚠️ Token süresi dolmuş, yenisi alınıyor...
-🆕 İlk token alımı yapılıyor...
-❌ Rate limit aşıldı! Son 1 saat içinde 5 istek yapıldı (Max: 5)
-✅ Sipariş senkronizasyonu tamamlandı. 25 sipariş alındı, süre: 1250ms
-```
-
 ### Background Service Status
 ```
-🚀 Token Renewal Background Service başlatıldı
-🚀 Order Sync Background Service başlatıldı
-🔍 Token durumu kontrol ediliyor...
-✅ Token kontrolü tamamlandı
-🔄 Sipariş senkronizasyonu başlatılıyor...
+info: ECommerceOrderApi.Services.TokenRenewalBackgroundService[0]
+      Token Renewal Background Service başlatıldı
+
+info: ECommerceOrderApi.Services.OrderSyncBackgroundService[0]
+      Order Sync Background Service başlatıldı
+
+debug: ECommerceOrderApi.Services.TokenRenewalBackgroundService[0]
+       Token durumu kontrol ediliyor...
+
+info: ECommerceOrderApi.Services.OrderSyncBackgroundService[0]
+       Sipariş senkronizasyonu başlatılıyor...
 ```
+
+### Token Service Logs
+```
+info: ECommerceOrderApi.Services.TokenService[0]
+      Cached token kullanılıyor. Expires: 2025-06-29 23:37:30
+
+info: ECommerceOrderApi.Services.TokenService[0]
+      Token yenileniyor (10 dakika buffer)...
+
+info: ECommerceOrderApi.Services.TokenService[0]
+      İlk token alımı yapılıyor...
+
+info: ECommerceOrderApi.Services.TokenService[0]
+      Mock token response kullanılıyor
+
+info: ECommerceOrderApi.Services.TokenService[0]
+      Yeni token başarıyla alındı. Expires in: 3600 saniye
+```
+
+### Sipariş Sync Logs
+```
+info: ECommerceOrderApi.Services.OrderSyncBackgroundService[0]
+      Mock orders response kullanılıyor
+
+info: ECommerceOrderApi.Services.OrderSyncBackgroundService[0]
+      Sipariş senkronizasyonu tamamlandı. 2 sipariş alındı, süre: 5.1626ms
+```
+
+> **🔍 Log Levels**: Production'da `Information` level kullanın. Debug detayları için `Debug` level'ı aktif edin.
 
 ## 🛡️ Güvenlik & Best Practices
 
@@ -268,10 +297,11 @@ Bu token yönetimi çözümü ile:
 
 - ✅ **Rate limit problemi çözüldü** (12 istek → 1 token/saat)
 - ✅ **Zero-downtime** token yenileme (proactive renewal)
-- ✅ **Production-ready** error handling ve logging
-- ✅ **Scalable architecture** (background services)
+- ✅ **Hands-off management** (tamamen otomatik, manuel müdahale yok)
+- ✅ **Production-ready** error handling ve structured logging
+- ✅ **Scalable architecture** (background services + thread-safe cache)
 - ✅ **Test-friendly** (otomatik test user + mock responses)
-- ✅ **Monitoring support** (health check endpoints)
+- ✅ **Transparent operation** (geliştiriciler sadece Orders API'sini kullanır)
 
 **🎯 Artık her 5 dakikada güvenle API çağrısı yapabilirsiniz!**
 
@@ -284,9 +314,31 @@ Bu token yönetimi çözümü ile:
 dotnet run
 
 # 2. Console'dan User ID'yi kopyala
-# 3. Test et
+# Çıktı: "Test kullanıcısı oluşturuldu: testuser@test.com - ID: 12345678-..."
+
+# 3. Sipariş listesini test et (Token otomatik yönetimi ile)
 curl "http://localhost:5268/api/v1/orders?userId=USER_ID"
-curl "http://localhost:5268/api/v1/tokenmanagement/status"
+
+# 4. Swagger UI'dan da test edebilirsiniz
+# http://localhost:5268/swagger
 ```
 
-**Token yönetimi otomatik çalışır, siz sadece API'yi kullanın!** ⚡ 
+**🎯 Token yönetimi tamamen arka planda otomatik çalışır!**
+
+### Background Service Logları
+Console'da şu logları göreceksiniz:
+```
+info: Program[0]
+      Test kullanıcısı oluşturuldu: testuser@test.com - ID: 12345678-1234-1234-1234-123456789abc
+
+info: ECommerceOrderApi.Services.TokenRenewalBackgroundService[0]
+      Token Renewal Background Service başlatıldı
+
+info: ECommerceOrderApi.Services.OrderSyncBackgroundService[0]
+      Order Sync Background Service başlatıldı
+
+info: ECommerceOrderApi.Services.TokenService[0]
+      İlk token alımı yapılıyor...
+```
+
+**Token yönetimi artık tamamen hands-off! Siz sadece API'yi kullanın!** ⚡ 
