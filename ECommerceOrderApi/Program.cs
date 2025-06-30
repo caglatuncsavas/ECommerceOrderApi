@@ -95,23 +95,23 @@ static async Task CreateTestUser(WebApplication app)
 
             if (result.Succeeded)
             {
-                logger.LogInformation("🎯 Test kullanıcısı oluşturuldu: {Email} - ID: {UserId}", testEmail, testUser.Id);
-                logger.LogInformation("📝 Test için kullanın: GET /api/v1/orders?userId={UserId}", testUser.Id);
+                logger.LogInformation(" Test kullanıcısı oluşturuldu: {Email} - ID: {UserId}", testEmail, testUser.Id);
+                logger.LogInformation(" Test için kullanın: GET /api/v1/orders?userId={UserId}", testUser.Id);
             }
             else
             {
-                logger.LogError("❌ Test kullanıcısı oluşturulamadı: {Errors}", 
+                logger.LogError(" Test kullanıcısı oluşturulamadı: {Errors}", 
                     string.Join(", ", result.Errors.Select(e => e.Description)));
             }
         }
         else
         {
-            logger.LogInformation("ℹ️ Test kullanıcısı zaten mevcut: {Email} - ID: {UserId}", testEmail, existingUser.Id);
-            logger.LogInformation("📝 Test için kullanın: GET /api/v1/orders?userId={UserId}", existingUser.Id);
+            logger.LogInformation(" Test kullanıcısı zaten mevcut: {Email} - ID: {UserId}", testEmail, existingUser.Id);
+            logger.LogInformation(" Test için kullanın: GET /api/v1/orders?userId={UserId}", existingUser.Id);
         }
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "❌ Test kullanıcısı oluşturulurken hata");
+        logger.LogError(ex, " Test kullanıcısı oluşturulurken hata");
     }
 }
