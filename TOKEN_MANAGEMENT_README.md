@@ -149,7 +149,7 @@ Content-Type: application/json
     "userId": "12345678-1234-1234-1234-123456789abc",
     "items": [
         {
-            "productId": 1,
+            "productId": 2,
             "quantity": 2
         }
     ]
@@ -263,17 +263,6 @@ finally
 }
 ```
 
-### Configuration Security
-```json
-// Production'da environment variables kullanın:
-{
-  "ExternalApi": {
-    "ClientId": "${EXTERNAL_API_CLIENT_ID}",
-    "ClientSecret": "${EXTERNAL_API_CLIENT_SECRET}"
-  }
-}
-```
-
 ### Error Resilience
 - **Rate limit tracking** ile 5 istek/saat sınırını aşmama
 - **Proactive renewal** ile token expiry önleme
@@ -287,7 +276,6 @@ Bu token yönetimi çözümü ile:
 - ✅ **Rate limit problemi çözüldü** (12 istek → 1 token/saat)
 - ✅ **Zero-downtime** token yenileme (proactive renewal)
 - ✅ **Hands-off management** (tamamen otomatik, manuel müdahale yok)
-- ✅ **Production-ready** error handling ve structured logging
 - ✅ **Scalable architecture** (background services + thread-safe cache)
 - ✅ **Test-friendly** (otomatik test user + mock responses)
 - ✅ **Transparent operation** (geliştiriciler sadece Orders API'sini kullanır)
